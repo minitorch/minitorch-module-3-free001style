@@ -9,7 +9,7 @@ import numpy.typing as npt
 from numpy import array, float64
 from typing_extensions import TypeAlias
 
-from .operators import prod
+from minitorch.operators import prod, zipWith, mul, sum
 
 MAX_DIMS = 32
 
@@ -42,8 +42,11 @@ def index_to_position(index: Index, strides: Strides) -> int:
     Returns:
         Position in storage
     """
-
-    raise NotImplementedError("Need to include this file from past assignment.")
+    # return sum(zipWith(mul)(index, strides))
+    sums = 0
+    for i in range(len(strides)):
+        sums += index[i] * strides[i]
+    return sums
 
 
 def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
@@ -59,11 +62,22 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
         out_index : return index corresponding to position.
 
     """
-    raise NotImplementedError("Need to include this file from past assignment.")
+    # for i in range(len(shape) - 1, -1, -1):
+    #     ordinal, out_index[i] = divmod(ordinal, shape[i])
+    alpha = 1
+    for i in range(len(shape) - 1, -1, -1):
+        out_index[i] = alpha
+        alpha *= shape[i]
+    new_ordinal = ordinal
+    for i in range(len(shape)):
+        stride_val = out_index[i]
+        idx_val = new_ordinal // stride_val
+        out_index[i] = idx_val
+        new_ordinal %= stride_val
 
 
 def broadcast_index(
-    big_index: Index, big_shape: Shape, shape: Shape, out_index: OutIndex
+        big_index: Index, big_shape: Shape, shape: Shape, out_index: OutIndex
 ) -> None:
     """
     Convert a `big_index` into `big_shape` to a smaller `out_index`
@@ -81,7 +95,8 @@ def broadcast_index(
     Returns:
         None
     """
-    raise NotImplementedError("Need to include this file from past assignment.")
+    for i in range(len(shape)):
+        out_index[i] = big_index[len(big_shape) - len(shape) + i] if shape[i] > 1 else 0
 
 
 def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
@@ -98,7 +113,20 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     Raises:
         IndexingError : if cannot broadcast
     """
-    raise NotImplementedError("Need to include this file from past assignment.")
+    result_shape = []
+    shape1 = shape1[::-1]
+    shape2 = shape2[::-1]
+    for i in range(max(len(shape1), len(shape2))):
+        dim1 = shape1[i] if i < len(shape1) else 1
+        dim2 = shape2[i] if i < len(shape2) else 1
+
+        if dim1 == dim2 or dim1 == 1:
+            result_shape.append(dim2)
+        elif dim2 == 1:
+            result_shape.append(dim1)
+        else:
+            raise IndexingError(f"Cannot broadcast two tensors with shapes {shape1[::-1]} and {shape2[::-1]}")
+    return tuple(result_shape[::-1])
 
 
 def strides_from_shape(shape: UserShape) -> UserStrides:
@@ -119,10 +147,10 @@ class TensorData:
     dims: int
 
     def __init__(
-        self,
-        storage: Union[Sequence[float], Storage],
-        shape: UserShape,
-        strides: Optional[UserStrides] = None,
+            self,
+            storage: Union[Sequence[float], Storage],
+            shape: UserShape,
+            strides: Optional[UserStrides] = None,
     ):
         if isinstance(storage, np.ndarray):
             self._storage = storage
@@ -209,7 +237,7 @@ class TensorData:
         Permute the dimensions of the tensor.
 
         Args:
-            *order: a permutation of the dimensions
+            order (list): a permutation of the dimensions
 
         Returns:
             New `TensorData` with the same storage and a new dimension order.
@@ -217,8 +245,9 @@ class TensorData:
         assert list(sorted(order)) == list(
             range(len(self.shape))
         ), f"Must give a position to each dimension. Shape: {self.shape} Order: {order}"
-
-        raise NotImplementedError("Need to include this file from past assignment.")
+        shape = tuple(self.shape[i] for i in order)
+        strides = tuple(self.strides[i] for i in order)
+        return TensorData(self._storage, shape, strides)
 
     def to_string(self) -> str:
         s = ""
