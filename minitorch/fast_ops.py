@@ -215,15 +215,15 @@ def tensor_zip(
                 out[i] = fn(a_storage[i], b_storage[i])
         else:
             for i in prange(len(out)):
-                a_in_index = np.zeros_like(a_shape)
-                b_in_index = np.zeros_like(b_shape)
+                a_index = np.zeros_like(a_shape)
+                b_index = np.zeros_like(b_shape)
                 out_index = np.zeros_like(out_shape)
                 to_index(i, out_shape, out_index)
-                broadcast_index(out_index, out_shape, a_shape, a_in_index)
-                broadcast_index(out_index, out_shape, b_shape, b_in_index)
-                j = index_to_position(a_in_index, a_strides)
+                broadcast_index(out_index, out_shape, a_shape, a_index)
+                broadcast_index(out_index, out_shape, b_shape, b_index)
+                j = index_to_position(a_index, a_strides)
                 a_j = a_storage[j]
-                k = index_to_position(b_in_index, b_strides)
+                k = index_to_position(b_index, b_strides)
                 b_k = b_storage[k]
                 l = index_to_position(out_index, out_strides)
                 out[l] = fn(a_j, b_k)
